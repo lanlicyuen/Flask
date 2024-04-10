@@ -3,10 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>比特币预计倒数日</title>
+    <title>比特币预计倒数日</title>       
 </head>
 <body>
     <h1>比特币预计倒数日</h1>
     <p>截止到 {{ current_date }}，区块已经有 {{ current_height }} 块，预计倒数日 {{ days_until_halving }} 天，即将到来的日期为 {{ halving_date }}。</p>
+    <!-- 更新比特币价格的显示方式 -->
+    <p style="font-weight: bold; font-size: 24px;">最近一次比特币价格: <span id="btcPrice" style="font-size: 30px; color: red;">{{ bitcoin_price }}</span></p>
+    <p>价格获取时间: <span id="quoteTime" style="font-size: 18px;">{{ price_time }}</span></p>
+    <p>提醒倒计时: <span id="countdown">未设置提醒</span></p>
+    <label>
+        <input type="checkbox" id="loopCheckbox"> 循环提醒
+    </label>
+    <button onclick="openSettings()">设置提醒</button>
+    <button onclick="stopReminder()">停止提醒</button>
+    
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>    
+
+    <button onclick="testSpeech()">测试语音播报</button>
+<script>
+function testSpeech() {
+    var msg = new SpeechSynthesisUtterance('Hello, world!');
+    window.speechSynthesis.speak(msg);
+}
+</script>
+
 </body>
 </html>
