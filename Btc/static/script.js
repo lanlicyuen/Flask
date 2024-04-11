@@ -1,13 +1,13 @@
 let reminderIntervalId = null;
 let countdownIntervalId = null;
 let countdownSeconds = 0;
+let loopCount = 0;
 
 function updateCountdownDisplay() {
     const countdownElement = document.getElementById('countdown');
     if (countdownSeconds > 0) {
         countdownElement.textContent = countdownSeconds + ' 秒';
     } else if (loopCount === -1) {
-        // 如果是无限循环，即使倒计时结束也不显示"未设置提醒"
         countdownElement.textContent = "正在循环提醒...";
     } else {
         countdownElement.textContent = '未设置提醒';
@@ -17,7 +17,6 @@ function updateCountdownDisplay() {
         }
     }
 }
-
 
 function startCountdown(seconds) {
     countdownSeconds = seconds;
@@ -29,39 +28,23 @@ function startCountdown(seconds) {
         countdownSeconds--;
         updateCountdownDisplay();
         if (countdownSeconds <= 0) {
+            clearInterval(countdownIntervalId);
+            countdownIntervalId = null;
+            updateCountdownDisplay();
+            fetchBitcoinPrice();
             if (loopCount === -1) {
-                // 如果设置为无限循环，则重置倒计时秒数并继续
-                countdownSeconds = seconds;
-            } else if (loopCount > 0) {
-                // 如果有指定循环次数，减少一次循环计数并重置倒计时秒数
-                loopCount--;
-                countdownSeconds = seconds;
-                if (loopCount === 0) {
-                    // 如果完成了所有循环，清理倒计时器并更新显示为“未设置提醒”
-                    clearInterval(countdownIntervalId);
-                    countdownIntervalId = null;
-                    updateCountdownDisplay();
-                    return; // 退出函数
-                }
-            } else {
-                // 如果不需要循环，清理倒计时器并更新显示为“未设置提醒”
-                clearInterval(countdownIntervalId);
-                countdownIntervalId = null;
-                updateCountdownDisplay();
-                return; // 退出函数
+                startCountdown(seconds);
             }
-            fetchBitcoinPrice(); // 在每次倒计时结束时获取并播报新价格
         }
     }, 1000);
 }
 
-
-
-let loopCount = 0; // 新增一个变量来存储循环次数
-
 function openSettings() {
+    clearInterval(reminderIntervalId);
+    reminderIntervalId = null;
+    
     let interval = prompt("请输入提醒间隔时间（秒）:", "60");
-    let isLoop = document.getElementById('loopCheckbox').checked; // 获取复选框的选中状态
+    let isLoop = document.getElementById('loopCheckbox').checked;
 
     if (interval !== null) {
         interval = parseInt(interval, 10);
@@ -69,57 +52,33 @@ function openSettings() {
             alert("请输入有效的秒数");
             return;
         }
-        if (isLoop) {
-            loopCount = -1; // 设置为-1表示无限循环
-        } else {
-            loopCount = 1; // 不勾选表示不循环，仅执行一次
-        }
-        startCountdown(interval); // 开始倒计时，倒计时结束后将会触发价格更新
-        if (reminderIntervalId !== null) {
-            clearInterval(reminderIntervalId); // 清除之前的定时器（如果有）
-        }
-        // 设置新的提醒定时器，到时间后更新价格
-        reminderIntervalId = setInterval(() => {
-            if (loopCount !== 0) {
-                fetchBitcoinPrice(); // 到时间后获取并播报新的比特币价格
-                if (loopCount > 0) {
-                    loopCount--; // 如果设置了循环次数，每次循环后减少计数
-                }
-            }
-            if (loopCount === 0) {
-                clearInterval(reminderIntervalId); // 如果循环结束，清除定时器
-                reminderIntervalId = null;
-            }
-        }, interval * 1000);
+        loopCount = isLoop ? -1 : 0;
+        startCountdown(interval);
     }
 }
-
-
 
 function stopReminder() {
-    // 清除提醒定时器
-    if (reminderIntervalId !== null) {
-        clearInterval(reminderIntervalId);
-        reminderIntervalId = null;
-    }
-    // 清除倒计时定时器
-    if (countdownIntervalId !== null) {
-        clearInterval(countdownIntervalId);
-        countdownIntervalId = null;
-    }
-    countdownSeconds = 0; // 重置倒计时秒数
-    loopCount = 0; // 重置循环计数器
-    updateCountdownDisplay(); // 更新显示为“未设置提醒”
+    clearInterval(reminderIntervalId);
+    reminderIntervalId = null;
+    
+    clearInterval(countdownIntervalId);
+    countdownIntervalId = null;
+    
+    countdownSeconds = 0;
+    loopCount = 0;
+    updateCountdownDisplay();
 }
-
 
 function fetchBitcoinPrice() {
     fetch('/get_bitcoin_price')
-        .then(response => response.text())
-        .then(price => {
-            document.getElementById('btcPrice').textContent = price + " USD";
-            speakPrice(price);
-            // 如果你也更新报价时间
+        .then(response => response.json())
+        .then(data => {
+            let price = parseFloat(data.price);
+            let intPrice = Math.floor(price); // 只取整数部分
+            document.getElementById('btcPrice').textContent = intPrice + " USD";
+            if (document.getElementById('voiceAnnouncementCheckbox').checked) {
+                speakPrice(intPrice.toString()); // 仅当勾选了语音播报时才播报
+            }
             let now = new Date();
             let timeString = now.toLocaleString("zh-CN", {timeZone: "Asia/Shanghai"});
             document.getElementById('quoteTime').textContent = "报价时间：" + timeString;
@@ -129,15 +88,34 @@ function fetchBitcoinPrice() {
         });
 }
 
-
-
 function speakPrice(price) {
     var msg = new SpeechSynthesisUtterance();
-    msg.text = "当前比特币价格：" + price;
-    msg.lang = "zh-CN";
+    let selectedLang = document.getElementById('languageSelect').value;
+
+    if (document.getElementById('readPriceAsNumberCheckbox').checked) {
+        // 如果勾选了“仅以数字形式读出价格”，则仅读出数字的每一位
+        let priceAsText = price.split('').join(' ');
+        msg.text = priceAsText; // 直接读出数字的每一位
+    } else {
+        // 根据选择的语言设置不同的msg.text
+        switch(selectedLang) {
+            case 'en-US':
+                msg.text = "The Bitcoin price is: " + price + " dollars";
+                break;
+            case 'zh-CN':
+                msg.text = "当前比特币价格：" + price + "美元";
+                break;
+            case 'zh-HK':
+                msg.text = "現時比特幣價格：" + price + "美金";
+                break;
+            case 'ja-JP':
+                msg.text = "現在のビットコインの価格は：" + price + "ドルです";
+                break;
+            default:
+                msg.text = "当前比特币价格：" + price + "美元";
+        }
+    }
+
+    msg.lang = selectedLang; // 设置语音播报的语言
     window.speechSynthesis.speak(msg);
 }
-
-
-
-// 确保fetchBitcoinPrice，speakPrice和displayQuoteTime函数定义保持不变

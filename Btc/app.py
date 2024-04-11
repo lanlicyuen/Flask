@@ -50,12 +50,10 @@ def home():
 
 @app.route('/get_bitcoin_price')
 def get_bitcoin_price():
-    # 使用Binance API获取BTC对USDT的价格
     response = requests.get('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT')
     data = response.json()
-    # 保留价格的小数点后两位
-    price = "{:.2f}".format(float(data['price']))
-    return jsonify(price)
+    price = float(data['price'])
+    return jsonify({'price': price})  # 确保以JSON格式返回价格
 
 if __name__ == "__main__":
     app.run(debug=True, port=81)

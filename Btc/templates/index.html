@@ -15,6 +15,19 @@
     <label>
         <input type="checkbox" id="loopCheckbox"> 循环提醒
     </label>
+    <label>
+        <input type="checkbox" id="voiceAnnouncementCheckbox"> 语音播报
+    </label>
+    <label>
+        <input type="checkbox" id="readPriceAsNumberCheckbox"> 仅以数字形式读出价格
+    </label><br>
+    <label for="languageSelect">选择语音播报语言：</label>
+    <select id="languageSelect">
+        <option value="en-US">英语</option>
+        <option value="zh-CN" selected>普通话</option>
+        <option value="zh-HK">广东话</option>
+        <option value="ja-JP">日语</option>
+    </select>    
     <button onclick="openSettings()">设置提醒</button>
     <button onclick="stopReminder()">停止提醒</button>
     
@@ -28,6 +41,34 @@ function testSpeech() {
     window.speechSynthesis.speak(msg);
 }
 </script>
+<style>
+    .update-table {
+        position: absolute;
+        top: 0;
+        right: 0;
+        border-collapse: collapse;
+    }
+    .update-table th, .update-table td {
+        border: 1px solid black;
+        padding: 5px;
+    }
+</style>
+
+<table class="update-table">
+    <tr>
+        <th>日期</th>
+        <th>更新内容</th>
+    </tr>
+    <tr>
+        <td>2023-04-11</td>
+        <td>
+            添加了价格读出功能<br>
+            添加了多国语言朗读<br>
+            添加了仅以数字形式读出价格
+        </td>
+    </tr>
+    <!-- 根据需要添加更多行 -->
+</table>
 
 </body>
 </html>
