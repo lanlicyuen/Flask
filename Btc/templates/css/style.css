@@ -1,0 +1,19 @@
+
+.update-table {
+    position: absolute;
+    top: 0;
+    right: 0;
+    border-collapse: collapse;
+}
+.update-table th, .update-table td {
+    border: 1px solid black;
+    padding: 5px;
+    font-size: 18px; /* 调整字体大小 */
+    font-weight: bold; /* 字体加粗 */
+}
+hr {
+    border: none; /* 移除默认边框 */
+    height: 1px; /* 设置分割线高度 */
+    background-color: #ccc; /* 设置分割线颜色 */
+    margin: 20px 0; /* 设置上下边距 */
+}

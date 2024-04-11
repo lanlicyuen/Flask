@@ -1,9 +1,11 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>比特币预计倒数日</title>       
+    <title>比特币预计倒数日</title>
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
     <h1>比特币预计倒数日</h1>
@@ -31,44 +33,10 @@
     <button onclick="openSettings()">设置提醒</button>
     <button onclick="stopReminder()">停止提醒</button>
     
-
     <script src="{{ url_for('static', filename='script.js') }}"></script>    
 
     <button onclick="testSpeech()">测试语音播报</button>
-<script>
-function testSpeech() {
-    var msg = new SpeechSynthesisUtterance('Hello, world!');
-    window.speechSynthesis.speak(msg);
-}
-</script>
-<style>
-    .update-table {
-        position: absolute;
-        top: 0;
-        right: 0;
-        border-collapse: collapse;
-    }
-    .update-table th, .update-table td {
-        border: 1px solid black;
-        padding: 5px;
-    }
-</style>
 
-<table class="update-table">
-    <tr>
-        <th>日期</th>
-        <th>更新内容</th>
-    </tr>
-    <tr>
-        <td>2023-04-11</td>
-        <td>
-            添加了价格读出功能<br>
-            添加了多国语言朗读<br>
-            添加了仅以数字形式读出价格
-        </td>
-    </tr>
-    <!-- 根据需要添加更多行 -->
-</table>
-
+    <hr>
 </body>
 </html>
