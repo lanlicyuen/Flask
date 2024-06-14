@@ -5,23 +5,58 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <title>Home</title>
+    <style>
+        #btc-price {
+            font-size: 2em; /* 字体大小增加一倍 */
+            color: red; /* 字体颜色改为红色 */
+        }
+        .news-section {
+            margin-top: 20px;
+        }
+        .news-item {
+            border-right: 1px solid #ccc;
+        }
+        .news-item:last-child {
+            border-right: none;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
-        <h1 class="mt-5">Welcome to My News Application</h1>
+        <h1 class="mt-5">Welcome to My Application</h1>
         <div class="card mt-3">
             <div class="card-body">
                 <h5 class="card-title">Latest Bitcoin Price</h5>
                 <p class="card-text">
-                    {% if btc_price %}
-                        <strong>{{ btc_price }} USD</strong>
-                    {% else %}
-                        <strong>Could not fetch the price. Please try again later.</strong>
-                    {% endif %}
+                    <strong id="btc-price">Loading...</strong> USD
                 </p>
+                <label for="refresh-interval">Update interval (seconds, min 5):</label>
+                <input type="number" id="refresh-interval" value="5" min="5" class="form-control" style="width: 100px;">
+                <button class="btn btn-primary mt-3" onclick="startPriceUpdate()">Start</button>
+                <button class="btn btn-secondary mt-3" onclick="stopSpeaking()">Stop Speaking</button>
             </div>
         </div>
-        <nav class="mt-3">
+
+        <div class="news-section row mt-5">
+            <div class="col-md-3 news-item">
+                <h5 class="text-center">News-1</h5>
+                <!-- Add your news content here -->
+            </div>
+            <div class="col-md-3 news-item">
+                <h5 class="text-center">News-2</h5>
+                <!-- Add your news content here -->
+            </div>
+            <div class="col-md-3 news-item">
+                <h5 class="text-center">News-3</h5>
+                <!-- Add your news content here -->
+            </div>
+            <div class="col-md-3 news-item">
+                <h5 class="text-center">News-4</h5>
+                <!-- Add your news content here -->
+            </div>
+        </div>
+
+        <nav class="mt-5">
             <a class="btn btn-primary" href="{{ url_for('login') }}">Login</a>
             <a class="btn btn-secondary" href="{{ url_for('register') }}">Register</a>
         </nav>
@@ -29,5 +64,51 @@
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        let updateInterval = null;
+        let shouldSpeak = true;
+
+        function fetchBtcPrice() {
+            fetch('/btc_price')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('btc-price').innerText = data.btc_price;
+                    if (shouldSpeak) {
+                        speakPrice(data.btc_price);
+                    }
+                })
+                .catch(error => console.error('Error fetching BTC price:', error));
+        }
+
+        function startPriceUpdate() {
+            shouldSpeak = true;
+            const interval = document.getElementById('refresh-interval').value;
+            if (interval >= 5) {
+                if (updateInterval) {
+                    clearInterval(updateInterval);
+                }
+                fetchBtcPrice();
+                updateInterval = setInterval(fetchBtcPrice, interval * 1000);
+            } else {
+                alert('Interval must be at least 5 seconds');
+            }
+        }
+
+        function speakPrice(price) {
+            const msg = new SpeechSynthesisUtterance(`最新的比特币价格是${price}美元`);
+            msg.lang = 'zh-CN';
+            window.speechSynthesis.speak(msg);
+        }
+
+        function stopSpeaking() {
+            shouldSpeak = false;
+            window.speechSynthesis.cancel();
+        }
+
+        // Start fetching the price immediately with the default interval
+        document.addEventListener('DOMContentLoaded', () => {
+            startPriceUpdate();
+        });
+    </script>
 </body>
 </html>

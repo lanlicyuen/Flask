@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 import os
 import requests
 from dotenv import load_dotenv
@@ -29,14 +29,17 @@ def load_user(user_id):
 
 @app.route('/')
 def home():
-    # 调用币安API获取最新的比特币价格
+    return render_template('index.html')
+
+@app.route('/btc_price')
+def btc_price():
     binance_api_url = 'https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT'
     response = requests.get(binance_api_url)
     btc_price = None
     if response.status_code == 200:
         data = response.json()
-        btc_price = data['price']
-    return render_template('index.html', btc_price=btc_price)
+        btc_price = int(float(data['price']))
+    return jsonify({'btc_price': btc_price})
 
 @app.route('/dashboard')
 @login_required
