@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template, redirect, url_for, flash
 import os
 import requests
 import logging
@@ -8,15 +8,18 @@ from datetime import datetime, timedelta
 import pytz
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin, LoginManager, login_user, login_required, logout_user, current_user
+from flask_bcrypt import Bcrypt
 
 # 加载环境变量
 load_dotenv()
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')  # 从环境变量中读取 SECRET_KEY
-app.config[
-    'SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://my_news:hMscKStCefbMEMaP@localhost/my_news'  # 使用 pymysql 连接到数据库
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://my_news:hMscKStCefbMEMaP@localhost/my_news'  # 使用 pymysql 连接到数据库
 db = SQLAlchemy(app)
+bcrypt = Bcrypt(app)
+login_manager = LoginManager(app)
+login_manager.login_view = 'login'
 
 # 读取API密钥和其他配置
 news_api_key = os.getenv('NEWS_API_KEY')
@@ -26,8 +29,12 @@ discord_webhook_url = os.getenv('DISCORD_WEBHOOK_URL')
 scheduler = BackgroundScheduler(timezone=pytz.timezone('Asia/Shanghai'))
 scheduler.start()
 
-
 # 数据库模型
+class User(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(150), unique=True, nullable=False)
+    password = db.Column(db.String(150), nullable=False)
+
 class UserSetting(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -36,139 +43,89 @@ class UserSetting(db.Model):
     loop = db.Column(db.Boolean, default=False)
     interval = db.Column(db.Integer, default=10)
 
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
 
-@app.route('/index')
-@login_required
-def index():
-    settings = UserSetting.query.filter_by(user_id=current_user.id).all()
-    preset_stocks = [setting.keyword for setting in settings]
-    send_time = settings[0].send_time.strftime('%H:%M') if settings else ''
-    loop = settings[0].loop if settings else False
-    interval = settings[0].interval if settings else 10
-    return render_template('send_news.html', preset_stocks=preset_stocks, send_time=send_time, loop=loop,
-                           interval=interval)
+latest_news = {}
 
+@app.route('/')
+def home():
+    return render_template('index.html', news=latest_news)
 
-@app.route('/save_settings', methods=['POST'])
-@login_required
-def save_settings():
-    data = request.get_json()
-    keywords = data.get('keywords', [])
-    send_time_str = data.get('send_time', '')
-    loop = data.get('loop', False)
-    interval = data.get('interval', 10)
+@app.route('/btc_price')
+def btc_price():
+    binance_api_url = 'https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT'
+    response = requests.get(binance_api_url)
+    btc_price = None
+    if response.status_code == 200:
+        data = response.json()
+        btc_price = int(float(data['price']))
+    return jsonify({'btc_price': btc_price})
 
-    send_time = datetime.strptime(send_time_str, '%H:%M').time()
+@app.route('/latest_news')
+def get_latest_news():
+    return jsonify(latest_news)
 
-    # 清除旧设置
-    UserSetting.query.filter_by(user_id=current_user.id).delete()
-
-    # 保存新设置
-    for keyword in keywords:
-        setting = UserSetting(user_id=current_user.id, keyword=keyword, send_time=send_time, loop=loop,
-                              interval=interval)
-        db.session.add(setting)
-    db.session.commit()
-
-    return "Settings saved successfully"
-
-
-@app.route('/send_news', methods=['POST'])
-@login_required
-def send_news():
-    data = request.get_json()
-    stocks = data.get('stocks', [])
-    if send_news_to_discord(stocks, news_api_key, discord_webhook_url):
-        return "Message sent successfully to Discord!"
-    else:
-        return "Failed to send message to Discord.", 500
-
-
-@app.route('/start_query', methods=['POST'])
-@login_required
-def start_query():
-    data = request.get_json()
-    stocks = data.get('stocks', [])
-    news_results = []
-    for stock in stocks:
-        news = fetch_latest_news(stock, news_api_key)
-        news_results.append({"stock": stock, "articles": news})
-    return jsonify(news_results)
-
-
-@app.route('/schedule_send', methods=['POST'])
-@login_required
-def schedule_send():
-    data = request.get_json()
-    stocks = data.get('stocks', [])
-    send_time_str = data.get('time', '')
-    loop = data.get('loop', False)
-    interval = data.get('interval', 10)
-
-    if not send_time_str and not loop:
-        return "Invalid time format", 400
-
-    if interval < 10:
-        return "Interval must be at least 10 minutes", 400
-
-    send_time = None
-    if send_time_str:
-        try:
-            send_time = datetime.strptime(send_time_str, '%H:%M').time()
-        except ValueError:
-            return "Invalid time format", 400
-
-    def send_scheduled_news():
-        send_news_to_discord(stocks, news_api_key, discord_webhook_url)
-
-    # 计划任务
-    if loop:
-        if send_time:
-            start_time = datetime.now(pytz.timezone('Asia/Shanghai')).replace(hour=send_time.hour,
-                                                                              minute=send_time.minute, second=0,
-                                                                              microsecond=0)
-            if start_time < datetime.now(pytz.timezone('Asia/Shanghai')):
-                start_time += timedelta(days=1)
-            scheduler.add_job(send_scheduled_news, 'interval', minutes=interval, start_date=start_time)
-        else:
-            scheduler.add_job(send_scheduled_news, 'interval', minutes=interval)
-    else:
-        if send_time:
-            scheduler.add_job(send_scheduled_news, 'cron', hour=send_time.hour, minute=send_time.minute,
-                              timezone=pytz.timezone('Asia/Shanghai'))
-        else:
-            return "Invalid time format", 400
-
-    return "News scheduled to be sent to Discord at the specified time."
-
-
-def fetch_latest_news(stock, api_key):
-    url = f'https://newsapi.org/v2/everything?q={stock}&apiKey={api_key}&pageSize=10&sortBy=publishedAt'
+def fetch_latest_news(keyword, api_key):
+    url = f'https://newsapi.org/v2/everything?q={keyword}&apiKey={api_key}&pageSize=10&sortBy=publishedAt'
     response = requests.get(url)
     if response.status_code == 200:
         articles = response.json().get('articles', [])
         return [{"title": article["title"], "url": article["url"]} for article in articles]
     else:
-        logging.error(f"Failed to fetch news for {stock}: {response.status_code}")
+        logging.error(f"Failed to fetch news for {keyword}: {response.status_code}")
         return []
 
+def update_news():
+    global latest_news
+    keywords = ["Bitcoin", "elon musk", "Nvidia", "Fed"]
+    news = {}
+    for keyword in keywords:
+        news[keyword] = fetch_latest_news(keyword, news_api_key)
+    latest_news = news
 
-def send_news_to_discord(stocks, api_key, webhook_url):
-    messages = []
-    for stock in stocks:
-        news = fetch_latest_news(stock, api_key)
-        if news:
-            message = f"News for {stock}:\n" + "\n".join([f"{article['title']}: {article['url']}" for article in news])
-            messages.append(message)
+# 初始化时获取最新新闻
+update_news()
 
-    for message in messages:
-        data = {"content": message}
-        response = requests.post(webhook_url, json=data)
-        if response.status_code != 204:
-            logging.error(f"Failed to send message to Discord: {response.status_code}, {response.text}")
-            return False
-    return True
+# 定时任务每小时更新新闻
+scheduler.add_job(update_news, 'interval', hours=1)
 
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    return render_template('dashboard.html')
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = bcrypt.generate_password_hash(request.form['password']).decode('utf-8')
+        user = User(username=username, password=password)
+        db.session.add(user)
+        db.session.commit()
+        flash('Account created successfully!', 'success')
+        return redirect(url_for('login'))
+    return render_template('register.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        user = User.query.filter_by(username=username).first()
+        if user and bcrypt.check_password_hash(user.password, password):
+            login_user(user)
+            return redirect(url_for('dashboard'))
+        else:
+            flash('Login Unsuccessful. Please check username and password', 'danger')
+    return render_template('login.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('login'))
 
 if __name__ == '__main__':
     with app.app_context():

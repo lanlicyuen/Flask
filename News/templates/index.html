@@ -15,9 +15,19 @@
         }
         .news-item {
             border-right: 1px solid #ccc;
+            padding: 10px;
         }
         .news-item:last-child {
             border-right: none;
+        }
+        @media (max-width: 768px) {
+            .news-item {
+                border-right: none;
+                border-bottom: 1px solid #ccc;
+            }
+            .news-item:last-child {
+                border-bottom: none;
+            }
         }
     </style>
 </head>
@@ -37,23 +47,17 @@
             </div>
         </div>
 
-        <div class="news-section row mt-5">
-            <div class="col-md-3 news-item">
-                <h5 class="text-center">News-1</h5>
-                <!-- Add your news content here -->
-            </div>
-            <div class="col-md-3 news-item">
-                <h5 class="text-center">News-2</h5>
-                <!-- Add your news content here -->
-            </div>
-            <div class="col-md-3 news-item">
-                <h5 class="text-center">News-3</h5>
-                <!-- Add your news content here -->
-            </div>
-            <div class="col-md-3 news-item">
-                <h5 class="text-center">News-4</h5>
-                <!-- Add your news content here -->
-            </div>
+        <div class="news-section row mt-5" id="news-section">
+            {% for keyword, articles in news.items() %}
+                <div class="col-md-3 news-item">
+                    <h5 class="text-center">{{ keyword }}</h5>
+                    <ul>
+                        {% for article in articles %}
+                            <li><a href="{{ article.url }}" target="_blank">{{ article.title }}</a></li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endfor %}
         </div>
 
         <nav class="mt-5">
@@ -80,6 +84,24 @@
                 .catch(error => console.error('Error fetching BTC price:', error));
         }
 
+        function fetchLatestNews() {
+            fetch('/latest_news')
+                .then(response => response.json())
+                .then(data => {
+                    const newsSection = document.getElementById('news-section');
+                    newsSection.innerHTML = '';
+                    for (const [keyword, articles] of Object.entries(data)) {
+                        const newsItem = document.createElement('div');
+                        newsItem.className = 'col-md-3 news-item';
+                        newsItem.innerHTML = `<h5 class="text-center">${keyword}</h5><ul>` +
+                            articles.map(article => `<li><a href="${article.url}" target="_blank">${article.title}</a></li>`).join('') +
+                            `</ul>`;
+                        newsSection.appendChild(newsItem);
+                    }
+                })
+                .catch(error => console.error('Error fetching latest news:', error));
+        }
+
         function startPriceUpdate() {
             shouldSpeak = true;
             const interval = document.getElementById('refresh-interval').value;
@@ -89,6 +111,8 @@
                 }
                 fetchBtcPrice();
                 updateInterval = setInterval(fetchBtcPrice, interval * 1000);
+                fetchLatestNews(); // Fetch news immediately
+                setInterval(fetchLatestNews, interval * 1000); // Schedule news fetching
             } else {
                 alert('Interval must be at least 5 seconds');
             }
@@ -105,7 +129,7 @@
             window.speechSynthesis.cancel();
         }
 
-        // Start fetching the price immediately with the default interval
+        // Start fetching the price and news immediately with the default interval
         document.addEventListener('DOMContentLoaded', () => {
             startPriceUpdate();
         });
