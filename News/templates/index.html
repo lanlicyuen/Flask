@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <title>Home</title>
+</head>
+<body>
+    <div class="container">
+        <h1 class="mt-5">Welcome to My News Application</h1>
+        <div class="card mt-3">
+            <div class="card-body">
+                <h5 class="card-title">Latest Bitcoin Price</h5>
+                <p class="card-text">
+                    {% if btc_price %}
+                        <strong>{{ btc_price }} USD</strong>
+                    {% else %}
+                        <strong>Could not fetch the price. Please try again later.</strong>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+        <nav class="mt-3">
+            <a class="btn btn-primary" href="{{ url_for('login') }}">Login</a>
+            <a class="btn btn-secondary" href="{{ url_for('register') }}">Register</a>
+        </nav>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Send News</title>
+</head>
+<body>
+    <h1>Send News</h1>
+    <form method="post" action="/send_news">
+        <div>
+            <label for="additional_stock">Enter stock/keyword:</label>
+            <input type="text" id="additional_stock" name="additional_stock">
+            <button type="button" onclick="addStock()">Add</button>
+            <button type="button" onclick="resetStocks()">Reset</button>
+        </div>
+        <div id="stock-list">
+            <h3>Select stocks and keywords:</h3>
+        </div>
+        <button type="button" onclick="startQuery()">Start Query</button>
+        <button type="button" onclick="sendToDiscord()">Send to Discord</button>
+        <br><br>
+        <label for="send_time">Set Time to Send to Discord:</label>
+        <input type="time" id="send_time" name="send_time">
+        <br>
+        <label>
+            <input type="checkbox" id="loopCheckbox"> Loop
+        </label>
+        <br>
+        <label for="interval">Interval (minutes, min 10):</label>
+        <input type="number" id="interval" name="interval" value="10" min="10">
+        <button type="button" onclick="scheduleSend()">Schedule Send</button>
+        <button type="button" onclick="saveSettings()">Save Settings</button>
+    </form>
+
+    <hr>
+
+    <div id="news-container">
+        <!-- 显示新闻分类 -->
+    </div>
+
+    <script>
+        const preset_stocks = {{ preset_stocks | safe }};
+        const send_time = "{{ send_time }}";
+        const loop = {{ loop | tojson }};
+        const interval = {{ interval }};
+
+        function addStock() {
+            const stock = document.getElementById("additional_stock").value.trim();
+            if (stock && !document.getElementById(stock)) {
+                const stockList = document.getElementById("stock-list");
+                const div = document.createElement("div");
+                div.innerHTML = `
+                    <input type="checkbox" id="${stock}" name="stocks" value="${stock}">
+                    <label for="${stock}">${stock}</label>
+                `;
+                stockList.appendChild(div);
+                document.getElementById("additional_stock").value = "";
+            }
+        }
+
+        function resetStocks() {
+            const checkboxes = document.querySelectorAll('#stock-list input[type="checkbox"]');
+            checkboxes.forEach(checkbox => checkbox.checked = false);
+        }
+
+        function startQuery() {
+            const checkedStocks = Array.from(document.querySelectorAll('#stock-list input:checked')).map(input => input.value);
+            fetch('/start_query', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ stocks: checkedStocks })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const newsContainer = document.getElementById('news-container');
+                newsContainer.innerHTML = '';
+                data.forEach(news => {
+                    const newsDiv = document.createElement('div');
+                    newsDiv.innerHTML = `
+                        <h4>${news.stock}</h4>
+                        <ul>
+                            ${news.articles.map(article => `<li><a href="${article.url}" target="_blank">${article.title}</a></li>`).join('')}
+                        </ul>
+                        <hr>
+                    `;
+                    newsContainer.appendChild(newsDiv);
+                });
+            });
+        }
+
+        function sendToDiscord() {
+            const checkedStocks = Array.from(document.querySelectorAll('#stock-list input:checked')).map(input => input.value);
+            fetch('/send_news', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ stocks: checkedStocks })
+            })
+            .then(response => response.text())
+            .then(data => {
+                alert(data);
+            });
+        }
+
+        function scheduleSend() {
+            const checkedStocks = Array.from(document.querySelectorAll('#stock-list input:checked')).map(input => input.value);
+            const sendTime = document.getElementById('send_time').value;
+            const loop = document.getElementById('loopCheckbox').checked;
+            const interval = parseInt(document.getElementById('interval').value);
+
+            fetch('/schedule_send', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ stocks: checkedStocks, time: sendTime, loop: loop, interval: interval })
+            })
+            .then(response => response.text())
+            .then(data => {
+                alert(data);
+            });
+        }
+
+        function saveSettings() {
+            const keywords = Array.from(document.querySelectorAll('#stock-list input:checked')).map(input => input.value);
+            const sendTime = document.getElementById('send_time').value;
+            const loop = document.getElementById('loopCheckbox').checked;
+            const interval = parseInt(document.getElementById('interval').value);
+
+            fetch('/save_settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ keywords: keywords, send_time: sendTime, loop: loop, interval: interval })
+            })
+            .then(response => response.text())
+            .then(data => {
+                alert(data);
+            });
+        }
+
+        window.onload = function() {
+            preset_stocks.forEach(stock => {
+                if (!document.getElementById(stock)) {
+                    const stockList = document.getElementById("stock-list");
+                    const div = document.createElement("div");
+                    div.innerHTML = `
+                        <input type="checkbox" id="${stock}" name="stocks" value="${stock}" checked>
+                        <label for="${stock}">${stock}</label>
+                    `;
+                    stockList.appendChild(div);
+                }
+            });
+
+            if (send_time) {
+                document.getElementById('send_time').value = send_time;
+            }
+            document.getElementById('loopCheckbox').checked = loop;
+            document.getElementById('interval').value = interval;
+        };
+    </script>
+</body>
+</html>
