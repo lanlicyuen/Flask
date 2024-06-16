@@ -40,9 +40,9 @@
                 <p class="card-text">
                     <strong id="btc-price">Loading...</strong> USD
                 </p>
-                <label for="refresh-interval">Update interval (seconds, min 5):</label>
-                <input type="number" id="refresh-interval" value="5" min="5" class="form-control" style="width: 100px;">
-                <button class="btn btn-primary mt-3" onclick="startPriceUpdate()">Start</button>
+                <label for="speak-interval">Speak interval (seconds, min 5):</label>
+                <input type="number" id="speak-interval" value="5" min="5" class="form-control" style="width: 100px;">
+                <button class="btn btn-primary mt-3" onclick="startSpeaking()">Start Speaking</button>
                 <button class="btn btn-secondary mt-3" onclick="stopSpeaking()">Stop Speaking</button>
             </div>
         </div>
@@ -69,69 +69,54 @@
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script>
-        let updateInterval = null;
-        let shouldSpeak = true;
+        let priceUpdateInterval = null;
+        let speakInterval = null;
+        let shouldSpeak = false;
 
         function fetchBtcPrice() {
             fetch('/btc_price')
                 .then(response => response.json())
                 .then(data => {
-                    document.getElementById('btc-price').innerText = data.btc_price;
-                    if (shouldSpeak) {
-                        speakPrice(data.btc_price);
+                    if (data.btc_price !== null) {
+                        document.getElementById('btc-price').innerText = data.btc_price.toFixed(2);
+                        if (shouldSpeak) {
+                            speakPrice(data.btc_price.toFixed(2));
+                        }
+                    } else {
+                        document.getElementById('btc-price').innerText = 'Failed to load';
                     }
                 })
-                .catch(error => console.error('Error fetching BTC price:', error));
+                .catch(error => {
+                    console.error('Error fetching BTC price:', error);
+                    document.getElementById('btc-price').innerText = 'Error';
+                });
         }
 
-        function fetchLatestNews() {
-            fetch('/latest_news')
-                .then(response => response.json())
-                .then(data => {
-                    const newsSection = document.getElementById('news-section');
-                    newsSection.innerHTML = '';
-                    for (const [keyword, articles] of Object.entries(data)) {
-                        const newsItem = document.createElement('div');
-                        newsItem.className = 'col-md-3 news-item';
-                        newsItem.innerHTML = `<h5 class="text-center">${keyword}</h5><ul>` +
-                            articles.map(article => `<li><a href="${article.url}" target="_blank">${article.title}</a></li>`).join('') +
-                            `</ul>`;
-                        newsSection.appendChild(newsItem);
-                    }
-                })
-                .catch(error => console.error('Error fetching latest news:', error));
-        }
-
-        function startPriceUpdate() {
+        function startSpeaking() {
             shouldSpeak = true;
-            const interval = document.getElementById('refresh-interval').value;
+            const interval = document.getElementById('speak-interval').value;
             if (interval >= 5) {
-                if (updateInterval) {
-                    clearInterval(updateInterval);
+                if (speakInterval) {
+                    clearInterval(speakInterval);
                 }
-                fetchBtcPrice();
-                updateInterval = setInterval(fetchBtcPrice, interval * 1000);
-                fetchLatestNews(); // Fetch news immediately
-                setInterval(fetchLatestNews, interval * 1000); // Schedule news fetching
+                speakInterval = setInterval(fetchBtcPrice, interval * 1000);
             } else {
                 alert('Interval must be at least 5 seconds');
             }
         }
 
-        function speakPrice(price) {
-            const msg = new SpeechSynthesisUtterance(`最新的比特币价格是${price}美元`);
-            msg.lang = 'zh-CN';
-            window.speechSynthesis.speak(msg);
-        }
-
         function stopSpeaking() {
             shouldSpeak = false;
             window.speechSynthesis.cancel();
+            if (speakInterval) {
+                clearInterval(speakInterval);
+            }
         }
 
-        // Start fetching the price and news immediately with the default interval
+        // Start fetching the price immediately with a 1-second interval
         document.addEventListener('DOMContentLoaded', () => {
-            startPriceUpdate();
+            fetchBtcPrice();
+            priceUpdateInterval = setInterval(fetchBtcPrice, 1000);
         });
     </script>
 </body>
