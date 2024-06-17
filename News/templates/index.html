@@ -10,25 +10,6 @@
             font-size: 2em; /* 字体大小增加一倍 */
             color: red; /* 字体颜色改为红色 */
         }
-        .news-section {
-            margin-top: 20px;
-        }
-        .news-item {
-            border-right: 1px solid #ccc;
-            padding: 10px;
-        }
-        .news-item:last-child {
-            border-right: none;
-        }
-        @media (max-width: 768px) {
-            .news-item {
-                border-right: none;
-                border-bottom: 1px solid #ccc;
-            }
-            .news-item:last-child {
-                border-bottom: none;
-            }
-        }
     </style>
 </head>
 <body>
@@ -46,24 +27,6 @@
                 <button class="btn btn-secondary mt-3" onclick="stopSpeaking()">Stop Speaking</button>
             </div>
         </div>
-
-        <div class="news-section row mt-5" id="news-section">
-            {% for keyword, articles in news.items() %}
-                <div class="col-md-3 news-item">
-                    <h5 class="text-center">{{ keyword }}</h5>
-                    <ul>
-                        {% for article in articles %}
-                            <li><a href="{{ article.url }}" target="_blank">{{ article.title }}</a></li>
-                        {% endfor %}
-                    </ul>
-                </div>
-            {% endfor %}
-        </div>
-
-        <nav class="mt-5">
-            <a class="btn btn-primary" href="{{ url_for('login') }}">Login</a>
-            <a class="btn btn-secondary" href="{{ url_for('register') }}">Register</a>
-        </nav>
     </div>
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
