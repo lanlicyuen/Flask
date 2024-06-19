@@ -108,24 +108,24 @@ def btc_price_chart_data():
 @app.route('/send_chart_to_discord', methods=['POST'])
 def send_chart_to_discord():
     webhook_url = request.form.get('webhook_url')
-    interval = request.form.get('interval', '1min')
     if not webhook_url:
         webhook_url = 'https://discord.com/api/webhooks/1247795423679217704/PkkTjASXNZ09gsl0KLyfB_hyo8wphjzdjB7z6zjC49Ll-OgSNM7h4DtUC41KIK9Naiuk'
+    interval = request.form.get('interval')
 
-    chart_data_url = url_for('btc_price_chart_data', interval=interval, _external=True)
-    response = requests.get(chart_data_url)
-    if response.status_code == 200:
-        chart_data = response.json()
-        fig = plotly.io.from_json(json.dumps(chart_data))
-        chart_image = plotly.io.to_image(fig, format='png', engine='kaleido')
-        files = {'file': ('chart.png', chart_image)}
-        response = requests.post(webhook_url, files=files)
-        if response.status_code == 204:
-            return 'Chart sent to Discord successfully', 200
-        else:
-            return f'Failed to send chart to Discord: {response.status_code}', response.status_code
-    else:
-        return 'Failed to fetch chart data', 500
+    response = requests.get(f'http://127.0.0.1:81/btc_price_chart_data?interval={interval}')  # 使用 HTTP 而不是 HTTPS
+    if response.status_code != 200:
+        return f'Failed to fetch chart data: {response.status_code}', 500
+
+    chart_data = response.json()
+    chart_image = plotly.io.to_image(chart_data['data'], format='png')
+
+    files = {'file': ('chart.png', chart_image, 'image/png')}
+    response = requests.post(webhook_url, files=files)
+    if response.status_code != 204:
+        return f'Failed to send chart to Discord: {response.status_code}, {response.text}', 500
+
+    return 'Chart sent to Discord successfully!'
+
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
