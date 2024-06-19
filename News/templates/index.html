@@ -10,6 +10,11 @@
             font-size: 2em; /* 字体大小增加一倍 */
             color: red; /* 字体颜色改为红色 */
         }
+        .chart-container {
+            position: relative;
+            height: 400px;
+            width: 100%;
+        }
     </style>
 </head>
 <body>
@@ -27,14 +32,37 @@
                 <button class="btn btn-secondary mt-3" onclick="stopSpeaking()">Stop Speaking</button>
             </div>
         </div>
+
+        <div class="form-group mt-5">
+            <label for="interval">Select Interval:</label>
+            <select id="interval" class="form-control" onchange="updateChart()">
+                <option value="1min">1 Minute</option>
+                <option value="5min">5 Minutes</option>
+                <option value="15min">15 Minutes</option>
+                <option value="30min">30 Minutes</option>
+                <option value="1hour">1 Hour</option>
+                <option value="1day">1 Day</option>
+            </select>
+        </div>
+        <div id="chart" class="chart-container"></div>
+
+        <div class="form-group mt-5">
+            <label for="webhook-url">Webhook URL:</label>
+            <input type="text" id="webhook-url" class="form-control">
+            <button class="btn btn-secondary mt-3" onclick="lockWebhookUrl()">Confirm</button>
+            <button class="btn btn-primary mt-3" onclick="sendChartToDiscord()">Send to Discord</button>
+        </div>
     </div>
+
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <script>
         let priceUpdateInterval = null;
         let speakInterval = null;
         let shouldSpeak = false;
+        let webhookUrlLocked = false;
 
         function fetchBtcPrice() {
             fetch('/btc_price')
@@ -80,6 +108,44 @@
         document.addEventListener('DOMContentLoaded', () => {
             fetchBtcPrice();
             priceUpdateInterval = setInterval(fetchBtcPrice, 1000);
+        });
+
+        function updateChart() {
+            const interval = document.getElementById('interval').value;
+            fetch(`/btc_price_chart_data?interval=${interval}`)
+                .then(response => response.json())
+                .then(data => {
+                    Plotly.react('chart', data.data, data.layout);
+                })
+                .catch(error => console.error('Error fetching chart data:', error));
+        }
+
+        function lockWebhookUrl() {
+            if (!webhookUrlLocked) {
+                document.getElementById('webhook-url').disabled = true;
+                webhookUrlLocked = true;
+            }
+        }
+
+        function sendChartToDiscord() {
+            const webhookUrl = document.getElementById('webhook-url').value;
+            const interval = document.getElementById('interval').value;
+            const formData = new FormData();
+            formData.append('webhook_url', webhookUrl);
+            formData.append('interval', interval);
+
+            fetch('/send_chart_to_discord', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.text())
+                .then(result => alert(result))
+                .catch(error => console.error('Error sending chart to Discord:', error));
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            updateChart();
+            setInterval(updateChart, 1000); // 每秒刷新一次
         });
     </script>
 </body>

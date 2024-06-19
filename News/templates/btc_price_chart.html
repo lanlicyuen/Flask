@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <title>BTC Price Chart</title>
+    <style>
+        .chart-container {
+            position: relative;
+            height: 400px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="mt-5">BTC Price Chart</h1>
+        <div class="form-group">
+            <label for="interval">Select Interval:</label>
+            <select id="interval" class="form-control" onchange="updateChart()">
+                <option value="1min">1 Minute</option>
+                <option value="5min">5 Minutes</option>
+                <option value="15min">15 Minutes</option>
+                <option value="30min">30 Minutes</option>
+                <option value="1hour">1 Hour</option>
+                <option value="1day">1 Day</option>
+            </select>
+        </div>
+        <div id="chart" class="chart-container"></div>
+    </div>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script>
+        function updateChart() {
+            const interval = document.getElementById('interval').value;
+            fetch(`/btc_price_chart_data?interval=${interval}`)
+                .then(response => response.json())
+                .then(data => {
+                    Plotly.newPlot('chart', data.data, data.layout);
+                })
+                .catch(error => console.error('Error fetching chart data:', error));
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            updateChart();
+        });
+    </script>
+</body>
+</html>
